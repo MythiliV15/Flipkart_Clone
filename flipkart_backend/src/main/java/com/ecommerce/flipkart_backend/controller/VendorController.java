@@ -3,6 +3,7 @@ package com.ecommerce.flipkart_backend.controller;
 import com.ecommerce.flipkart_backend.dto.request.ProductRequest;
 import com.ecommerce.flipkart_backend.dto.response.ProductResponse;
 import com.ecommerce.flipkart_backend.service.ProductService;
+import com.ecommerce.flipkart_backend.service.OrderService;
 import com.ecommerce.flipkart_backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +20,26 @@ import java.util.Map;
 @PreAuthorize("hasRole('VENDOR')")
 public class VendorController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
+    private final UserService userService;
+    private final OrderService orderService;
 
     @Autowired
-    private UserService userService;
+    public VendorController(ProductService productService, UserService userService, OrderService orderService) {
+        this.productService = productService;
+        this.userService = userService;
+        this.orderService = orderService;
+    }
 
     private Long getVendorId(Authentication authentication) {
         String email = ((UserDetails) authentication.getPrincipal()).getUsername();
         return userService.getUserIdByEmail(email);
+    }
+
+    @GetMapping("/analysis")
+    public ResponseEntity<Map<String, Object>> getAnalysis(Authentication authentication) {
+        Long vendorId = getVendorId(authentication);
+        return ResponseEntity.ok(orderService.getVendorAnalysis(vendorId));
     }
 
     @PostMapping("/products")

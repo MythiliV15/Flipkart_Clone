@@ -2,6 +2,8 @@ package com.ecommerce.flipkart_backend.controller;
 
 import com.ecommerce.flipkart_backend.dto.response.ProductResponse;
 import com.ecommerce.flipkart_backend.service.ProductService;
+import com.ecommerce.flipkart_backend.service.AdminService;
+import com.ecommerce.flipkart_backend.entity.GlobalSettings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +16,14 @@ public class ProductController {
 
     @Autowired
     private ProductService productService;
+
+    @Autowired
+    private AdminService adminService;
+
+    @GetMapping("/settings")
+    public ResponseEntity<GlobalSettings> getSettings() {
+        return ResponseEntity.ok(adminService.getSettings());
+    }
 
     @GetMapping
     public ResponseEntity<List<ProductResponse>> getAllProducts() {
