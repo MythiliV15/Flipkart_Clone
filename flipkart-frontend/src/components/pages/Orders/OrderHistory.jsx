@@ -9,6 +9,7 @@ import Loader from '../../common/Loader';
 const OrderHistory = () => {
   const dispatch = useDispatch();
   const { orders, loading } = useSelector((state) => state.orders);
+  const { user } = useSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(fetchMyOrders());
@@ -16,7 +17,7 @@ const OrderHistory = () => {
 
   const handleCancel = (orderId) => {
     if (window.confirm('Are you sure you want to cancel this order?')) {
-      dispatch(cancelOrder({ orderId, performedBy: user.email }));
+      dispatch(cancelOrder({ orderId, performedBy: user?.email }));
     }
   };
 

@@ -24,6 +24,8 @@ public class Order {
     @Column(nullable = false)
     private Double totalAmount;
 
+    private Double platformFee = 0.0;
+
     @Column(nullable = false)
     private String status; // CREATED, CONFIRMED, SHIPPED, DELIVERED, CANCELLED
 

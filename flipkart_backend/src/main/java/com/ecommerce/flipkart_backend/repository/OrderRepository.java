@@ -36,4 +36,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.status != 'CANCELLED'")
     Object[] calculateTotalRevenue();
+
+    @Query("SELECT COUNT(DISTINCT oi.order.id), SUM(oi.quantity), SUM(oi.quantity * oi.priceAtPurchase) " +
+           "FROM OrderItem oi " +
+           "WHERE oi.product.vendor.id = :vendorId AND oi.order.status != 'CANCELLED'")
+    List<Object[]> findVendorAnalysis(@Param("vendorId") Long vendorId);
 }

@@ -9,13 +9,17 @@ import com.ecommerce.flipkart_backend.entity.User;
 import com.ecommerce.flipkart_backend.repository.OrderRepository;
 import com.ecommerce.flipkart_backend.repository.ProductRepository;
 import com.ecommerce.flipkart_backend.repository.UserRepository;
+import com.ecommerce.flipkart_backend.repository.GlobalSettingsRepository;
+import com.ecommerce.flipkart_backend.entity.GlobalSettings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.LockModeType;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,51 +37,59 @@ public class OrderService {
     @Autowired
     private AuditLogService auditLogService;
 
+    @Autowired
+    private GlobalSettingsRepository settingsRepository;
+
     @Transactional
     public OrderResponse createOrder(OrderRequest request, Long customerId) {
         User customer = userRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
 
+        GlobalSettings settings = settingsRepository.getSettings();
+        
         Order order = new Order();
         order.setCustomer(customer);
         order.setStatus("CREATED");
         order.setTotalAmount(0.0);
 
         List<OrderItem> orderItems = new ArrayList<>();
-        double totalAmount = 0.0;
+        double productSubtotal = 0.0;
 
         for (OrderRequest.OrderItemRequest itemRequest : request.getItems()) {
-            // Pessimistic Lock - Lock the product row for update
             Product product = productRepository.findByIdForUpdate(itemRequest.getProductId());
             if (product == null) {
                 throw new RuntimeException("Product not found or deleted: " + itemRequest.getProductId());
             }
 
-            // Check stock availability
             if (product.getStock() < itemRequest.getQuantity()) {
                 throw new RuntimeException("Insufficient stock for product: " + product.getName());
             }
 
-            // Decrement stock atomically
             product.setStock(product.getStock() - itemRequest.getQuantity());
             productRepository.save(product);
 
-            // Create order item
+            double itemPrice = product.getPrice();
+            // Apply offer if enabled and not expired
+            if (settings.getOfferEnabled() && settings.getOfferExpiry() != null && settings.getOfferExpiry().isAfter(LocalDateTime.now())) {
+                itemPrice = itemPrice * (1 - settings.getOfferPercentage() / 100.0);
+            }
+
             OrderItem orderItem = new OrderItem();
             orderItem.setOrder(order);
             orderItem.setProduct(product);
             orderItem.setQuantity(itemRequest.getQuantity());
-            orderItem.setPriceAtPurchase(product.getPrice());
+            orderItem.setPriceAtPurchase(itemPrice);
             orderItems.add(orderItem);
 
-            totalAmount += product.getPrice() * itemRequest.getQuantity();
+            productSubtotal += itemPrice * itemRequest.getQuantity();
         }
 
         order.setOrderItems(orderItems);
+        double totalAmount = productSubtotal + settings.getPlatformFee();
         order.setTotalAmount(totalAmount);
+        order.setPlatformFee(settings.getPlatformFee());
         order = orderRepository.save(order);
 
-        // Create audit log
         auditLogService.createLog(order.getId(), "ORDER_CREATED", customer.getEmail());
 
         return mapToResponse(order);
@@ -92,6 +104,24 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         return mapToResponse(order);
+    }
+
+    public Map<String, Object> getVendorAnalysis(Long vendorId) {
+        List<Object[]> results = orderRepository.findVendorAnalysis(vendorId);
+        if (results == null || results.isEmpty() || results.get(0) == null) {
+            return Map.of(
+                "totalOrders", 0,
+                "totalProductsSold", 0,
+                "totalRevenue", 0.0
+            );
+        }
+        
+        Object[] values = results.get(0);
+        return Map.of(
+            "totalOrders", values[0] != null ? values[0] : 0,
+            "totalProductsSold", values[1] != null ? values[1] : 0,
+            "totalRevenue", values[2] != null ? values[2] : 0.0
+        );
     }
 
     @Transactional
@@ -201,6 +231,7 @@ public class OrderService {
         response.setCustomerId(order.getCustomer().getId());
         response.setCustomerName(order.getCustomer().getName());
         response.setTotalAmount(order.getTotalAmount());
+        response.setPlatformFee(order.getPlatformFee());
         response.setStatus(order.getStatus());
         response.setStripePaymentId(order.getStripePaymentId());
         response.setCreatedAt(order.getCreatedAt());

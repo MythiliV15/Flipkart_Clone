@@ -18,6 +18,35 @@ const Checkout = () => {
   const { items, totalPrice } = useSelector((state) => state.cart);
   const { user } = useSelector((state) => state.auth);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await axiosInstance.get('/products/settings');
+      setSettings(response.data);
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  };
+
+  const calculateDiscount = () => {
+    if (settings && settings.offerEnabled && settings.offerExpiry) {
+      const now = new Date();
+      const expiry = new Date(settings.offerExpiry);
+      if (expiry > now) {
+        return (totalPrice * settings.offerPercentage) / 100;
+      }
+    }
+    return 0;
+  };
+
+  const discount = calculateDiscount();
+  const platformFee = settings ? settings.platformFee : 0;
+  const finalTotal = totalPrice - discount + platformFee;
 
   const [address, setAddress] = useState({
     street: '',
@@ -68,8 +97,25 @@ const Checkout = () => {
   };
 
   if (items.length === 0) {
-    navigate('/cart');
-    return null;
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex flex-col items-center justify-center text-center px-4">
+          <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+            <svg className="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
+                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
+          <p className="text-gray-500 mb-6">Add some products before checking out.</p>
+          <a href="/" className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
+            Browse Products
+          </a>
+        </div>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -131,7 +177,7 @@ const Checkout = () => {
                   className="w-full py-4 text-lg font-bold shadow-lg shadow-green-100"
                   variant="success"
                 >
-                  Pay ₹{totalPrice.toLocaleString()} via Stripe
+                  Pay ₹{finalTotal.toLocaleString()} via Stripe
                 </Button>
                 <p className="text-center text-xs text-gray-400 mt-4">
                   By clicking, you agree to our Terms of Service.
@@ -169,13 +215,23 @@ const Checkout = () => {
                   <span>Subtotal</span>
                   <span>₹{totalPrice.toLocaleString()}</span>
                 </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-orange-600 font-bold">
+                    <span>Offer Discount ({settings.offerPercentage}%)</span>
+                    <span>-₹{discount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-gray-600">
+                  <span>Platform Fee</span>
+                  <span>₹{platformFee.toLocaleString()}</span>
+                </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Shipping</span>
                   <span className="text-green-600 font-medium">FREE</span>
                 </div>
-                <div className="flex justify-between text-xl font-extrabold text-gray-900 pt-2">
+                <div className="flex justify-between text-xl font-extrabold text-gray-900 pt-2 border-t border-gray-100 mt-2">
                   <span>Total</span>
-                  <span>₹{totalPrice.toLocaleString()}</span>
+                  <span>₹{finalTotal.toLocaleString()}</span>
                 </div>
               </div>
             </div>

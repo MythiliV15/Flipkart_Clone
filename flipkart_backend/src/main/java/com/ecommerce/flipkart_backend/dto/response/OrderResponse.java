@@ -10,6 +10,7 @@ public class OrderResponse {
     private Long customerId;
     private String customerName;
     private Double totalAmount;
+    private Double platformFee;
     private String status;
     private String stripePaymentId;
     private LocalDateTime createdAt;
