@@ -1,11 +1,13 @@
 package com.ecommerce.flipkart_backend.controller;
 
+import com.ecommerce.flipkart_backend.entity.GlobalSettings;
 import com.ecommerce.flipkart_backend.dto.response.OrderResponse;
 import com.ecommerce.flipkart_backend.service.AdminService;
 import com.ecommerce.flipkart_backend.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +23,16 @@ public class AdminController {
 
     @Autowired
     private OrderService orderService;
+
+    @GetMapping("/settings")
+    public ResponseEntity<GlobalSettings> getSettings() {
+        return ResponseEntity.ok(adminService.getSettings());
+    }
+
+    @PutMapping("/settings")
+    public ResponseEntity<GlobalSettings> updateSettings(@Valid @RequestBody GlobalSettings settings) {
+        return ResponseEntity.ok(adminService.updateSettings(settings));
+    }
 
     @GetMapping("/reports/top-products")
     public ResponseEntity<List<Map<String, Object>>> getTopProducts(
