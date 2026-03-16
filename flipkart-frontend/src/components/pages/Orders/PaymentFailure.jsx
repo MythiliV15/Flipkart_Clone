@@ -46,7 +46,8 @@ const PaymentFailure = () => {
           </div>
           
           <p className="mt-8 text-xs text-gray-400 font-medium">
-            Having persistent issues? <a href="#" className="text-blue-500 hover:underline">Contact Support</a>
+            {/* href="#" ah remove pannittu valid route kuduthuruken */}
+            Having persistent issues? <Link to="/" className="text-blue-500 hover:underline">Contact Support</Link>
           </p>
         </div>
       </div>
