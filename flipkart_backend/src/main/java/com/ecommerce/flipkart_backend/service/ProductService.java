@@ -22,6 +22,7 @@ public class ProductService {
     private UserRepository userRepository;
 
     public ProductResponse createProduct(ProductRequest request, Long vendorId) {
+        validateProductRequest(request);
         User vendor = userRepository.findById(vendorId)
                 .orElseThrow(() -> new RuntimeException("Vendor not found"));
 
@@ -41,6 +42,7 @@ public class ProductService {
     }
 
     public ProductResponse updateProduct(Long productId, ProductRequest request, Long vendorId) {
+        validateProductRequest(request);
         Product product = productRepository.findByIdAndNotDeleted(productId);
         if (product == null) {
             throw new RuntimeException("Product not found");
@@ -61,6 +63,18 @@ public class ProductService {
 
         Product updated = productRepository.save(product);
         return mapToResponse(updated);
+    }
+
+    private void validateProductRequest(ProductRequest request) {
+        if (request.getPrice() == null || request.getPrice() < 1) {
+            throw new RuntimeException("Price must be at least 1");
+        }
+        if (request.getPrice() >= 100000000) { // 8 digits max
+            throw new RuntimeException("Price cannot exceed 8 digits");
+        }
+        if (request.getStock() == null || request.getStock() < 0) {
+            throw new RuntimeException("Stock cannot be less than 0");
+        }
     }
 
     public void deleteProduct(Long productId, Long vendorId) {
