@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { fetchVendorProducts, deleteProduct } from '../../features/products/productSlice';
 import Navbar from '../../layout/Navbar';
 import Footer from '../../layout/Footer';
@@ -11,10 +12,22 @@ const VendorDashboard = () => {
   const { products, loading } = useSelector((state) => state.products);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
 
   useEffect(() => {
     dispatch(fetchVendorProducts());
   }, [dispatch]);
+
+  const categories = [...new Set(products.map(p => p.category))];
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === '' || product.category === selectedCategory;
+    const matchesStatus = selectedStatus === '' || product.status === selectedStatus;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
 
   const handleEdit = (product) => {
     setEditingProduct(product);
@@ -41,16 +54,65 @@ const VendorDashboard = () => {
             <h1 className="text-3xl font-extrabold text-gray-900">Vendor Dashboard</h1>
             <p className="text-gray-500 mt-1">Manage your products and inventory</p>
           </div>
-          <Button
-            onClick={() => setShowForm(true)}
-            variant="success"
-            className="flex items-center shadow-lg shadow-green-100"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          <div className="flex gap-4 w-full md:w-auto">
+            <Link to="/vendor/analysis" className="w-full md:w-auto">
+              <Button
+                variant="outline"
+                className="flex items-center justify-center w-full shadow-sm"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                View Analysis
+              </Button>
+            </Link>
+            <Button
+              onClick={() => setShowForm(true)}
+              variant="success"
+              className="flex items-center justify-center w-full md:w-auto shadow-lg shadow-green-100"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Add New Product
+            </Button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col md:flex-row gap-4 items-center">
+          <div className="relative flex-grow w-full">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            Add New Product
-          </Button>
+          </div>
+          <div className="flex gap-4 w-full md:w-auto">
+            <select
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white text-sm font-semibold text-gray-700"
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+            >
+              <option value="">All Categories</option>
+              {categories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            <select
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white text-sm font-semibold text-gray-700"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+            >
+              <option value="">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -67,14 +129,14 @@ const VendorDashboard = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {products.length === 0 && !loading ? (
+                {filteredProducts.length === 0 && !loading ? (
                   <tr>
                     <td colSpan="6" className="p-12 text-center text-gray-500">
-                      No products found. Start by adding one!
+                      No products found matching your criteria.
                     </td>
                   </tr>
                 ) : (
-                  products.map((product) => (
+                  filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="flex items-center">

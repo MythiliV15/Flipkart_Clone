@@ -21,11 +21,33 @@ const VendorProductForm = ({ product = null, onClose }) => {
     e.preventDefault();
     setLoading(true);
     
+    // Validation
+    const price = parseFloat(formData.price);
+    const stock = parseInt(formData.stock);
+
+    if (price < 1) {
+      alert('Price must be at least 1');
+      setLoading(false);
+      return;
+    }
+
+    if (formData.price.toString().split('.')[0].length > 8) {
+      alert('Price cannot exceed 8 digits');
+      setLoading(false);
+      return;
+    }
+
+    if (stock < 0) {
+      alert('Stock cannot be less than 0');
+      setLoading(false);
+      return;
+    }
+
     // Ensure numeric values are sent as numbers
     const finalData = {
       ...formData,
-      price: parseFloat(formData.price),
-      stock: parseInt(formData.stock),
+      price: price,
+      stock: stock,
     };
 
     try {
@@ -86,6 +108,9 @@ const VendorProductForm = ({ product = null, onClose }) => {
             label="Price (₹)"
             type="number"
             placeholder="0.00"
+            min="1"
+            max="99999999.99"
+            step="0.01"
             value={formData.price}
             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
             required
@@ -94,6 +119,7 @@ const VendorProductForm = ({ product = null, onClose }) => {
             label="Initial Stock"
             type="number"
             placeholder="0"
+            min="0"
             value={formData.stock}
             onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
             required
