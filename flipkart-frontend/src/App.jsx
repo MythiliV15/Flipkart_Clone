@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { initializeCart } from './components/features/cart/cartSlice';
+import { fetchWishlist } from './components/features/wishlist/wishlistSlice';
 import Login from './components/pages/Auth/Login';
 import Register from './components/pages/Auth/Register';
 import Home from './components/pages/Home/Home';
@@ -12,9 +13,11 @@ import Cart from './components/pages/Cart/Cart';
 import Checkout from './components/pages/Cart/Checkout';
 import OrderSuccess from './components/pages/Orders/OrderSuccess';
 import AdminDashboard from './components/pages/Dashboard/AdminDashboard';
+import VendorAnalysis from './components/pages/Dashboard/VendorAnalysis';
 import OrderHistory from './components/pages/Orders/OrderHistory';
 import PaymentSuccess from './components/pages/Orders/PaymentSuccess';
 import PaymentFailure from './components/pages/Orders/PaymentFailure';
+import Wishlist from './components/pages/Wishlist/Wishlist';
 
 function App() {
   const dispatch = useDispatch();
@@ -23,6 +26,8 @@ function App() {
   useEffect(() => {
     if (user && user.id) {
       dispatch(initializeCart(user.id));
+      // Load wishlist whenever user is set/changed
+      dispatch(fetchWishlist());
     }
   }, [user, dispatch]);
 
@@ -38,6 +43,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['VENDOR', 'ADMIN']}>
               <VendorDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vendor/analysis"
+          element={
+            <ProtectedRoute allowedRoles={['VENDOR']}>
+              <VendorAnalysis />
             </ProtectedRoute>
           }
         />
@@ -71,6 +84,14 @@ function App() {
           element={
             <ProtectedRoute allowedRoles={['CUSTOMER', 'VENDOR', 'ADMIN']}>
               <OrderHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <ProtectedRoute allowedRoles={['CUSTOMER', 'VENDOR', 'ADMIN']}>
+              <Wishlist />
             </ProtectedRoute>
           }
         />
