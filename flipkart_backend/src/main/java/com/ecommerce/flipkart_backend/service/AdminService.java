@@ -14,7 +14,9 @@ import com.ecommerce.flipkart_backend.dto.response.OrderResponse;
 import com.ecommerce.flipkart_backend.entity.AuditLog;
 import com.ecommerce.flipkart_backend.entity.Order;
 import com.ecommerce.flipkart_backend.entity.User;
+import com.ecommerce.flipkart_backend.entity.GlobalSettings;
 import com.ecommerce.flipkart_backend.repository.AuditLogRepository;
+import com.ecommerce.flipkart_backend.repository.GlobalSettingsRepository;
 import com.ecommerce.flipkart_backend.repository.OrderRepository;
 import com.ecommerce.flipkart_backend.repository.ProductRepository;
 import com.ecommerce.flipkart_backend.repository.UserRepository;
@@ -33,6 +35,22 @@ public class AdminService {
 
     @Autowired
     private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private GlobalSettingsRepository settingsRepository;
+
+    public GlobalSettings getSettings() {
+        return settingsRepository.getSettings();
+    }
+
+    public GlobalSettings updateSettings(GlobalSettings settings) {
+        GlobalSettings currentSettings = settingsRepository.getSettings();
+        currentSettings.setPlatformFee(settings.getPlatformFee());
+        currentSettings.setOfferPercentage(settings.getOfferPercentage());
+        currentSettings.setOfferEnabled(settings.getOfferEnabled());
+        currentSettings.setOfferExpiry(settings.getOfferExpiry());
+        return settingsRepository.save(currentSettings);
+    }
 
     public List<Map<String, Object>> getTopProducts(int limit) {
         List<Object[]> results = orderRepository.findTopProducts(limit);
@@ -130,6 +148,7 @@ public class AdminService {
         response.setCustomerId(order.getCustomer().getId());
         response.setCustomerName(order.getCustomer().getName());
         response.setTotalAmount(order.getTotalAmount());
+        response.setPlatformFee(order.getPlatformFee());
         response.setStatus(order.getStatus());
         response.setStripePaymentId(order.getStripePaymentId());
         response.setCreatedAt(order.getCreatedAt());

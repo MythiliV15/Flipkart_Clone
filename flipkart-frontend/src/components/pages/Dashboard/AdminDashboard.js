@@ -5,18 +5,95 @@ import Navbar from '../../layout/Navbar';
 import Footer from '../../layout/Footer';
 import Loader from '../../common/Loader';
 import Button from '../../common/Button';
+import axiosInstance from '../../../api/axiosConfig';
 
 const AdminDashboard = () => {
   const dispatch = useDispatch();
   const { stats, topProducts, dailyRevenue, orders, loading } = useSelector((state) => state.admin);
   const [updatingId, setUpdatingId] = useState(null);
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [selectedOrderStatus, setSelectedOrderStatus] = useState('');
+  
+  // Settings State
+  const [settings, setSettings] = useState({
+    platformFee: 1, // Default to 1 to match backend validation
+    offerPercentage: 0,
+    offerEnabled: false,
+    offerExpiry: ''
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [offerDays, setOfferDays] = useState(0);
+  const [offerHours, setOfferHours] = useState(0);
 
   useEffect(() => {
     dispatch(fetchTotalStats());
     dispatch(fetchTopProducts());
     dispatch(fetchDailyRevenue());
     dispatch(fetchAllOrders());
+    fetchSettings();
   }, [dispatch]);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await axiosInstance.get('/admin/settings');
+      setSettings(response.data);
+      if (response.data.offerExpiry) {
+        const expiry = new Date(response.data.offerExpiry);
+        const now = new Date();
+        const diff = expiry - now;
+        if (diff > 0) {
+          setOfferDays(Math.floor(diff / (1000 * 60 * 60 * 24)));
+          setOfferHours(Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    // Frontend Validation
+    if (settings.platformFee < 1 || settings.platformFee > 500) {
+      alert("Platform fee must be between 1 and 500.");
+      return;
+    }
+    if (settings.offerPercentage < 0) {
+      alert("Offer percentage cannot be negative.");
+      return;
+    }
+
+    setSavingSettings(true);
+    try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + parseInt(offerDays));
+      expiryDate.setHours(expiryDate.getHours() + parseInt(offerHours));
+      
+      const updatedSettings = {
+        ...settings,
+        offerExpiry: expiryDate.toISOString()
+      };
+      
+      await axiosInstance.put('/admin/settings', updatedSettings);
+      alert('Settings updated successfully');
+      fetchSettings();
+    } catch (err) {
+      if (err.response && err.response.data) {
+        const errorMessages = Object.values(err.response.data).join('\n');
+        alert('Failed to update settings:\n' + errorMessages);
+      } else {
+        alert('Failed to update settings');
+      }
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.id.toString().includes(orderSearchTerm) || 
+                          (order.customerName && order.customerName.toLowerCase().includes(orderSearchTerm.toLowerCase()));
+    const matchesStatus = selectedOrderStatus === '' || order.status === selectedOrderStatus;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleStatusUpdate = async (orderId, currentStatus) => {
     let nextStatus = '';
@@ -118,6 +195,96 @@ const AdminDashboard = () => {
           </div>
         </div>
 
+        {/* Global Settings Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-10">
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <svg className="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Global Platform Settings
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {/* Platform Fee */}
+            <div className="space-y-4 p-4 bg-gray-50 rounded-xl">
+              <h3 className="font-bold text-gray-700">Platform Fee</h3>
+              <div>
+                <label className="text-xs text-gray-500 uppercase font-bold mb-1 block">Fee Amount (₹)</label>
+                <input
+                  type="number"
+                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={settings.platformFee}
+                  onChange={(e) => setSettings({...settings, platformFee: e.target.value})}
+                />
+              </div>
+            </div>
+
+            {/* Offer Settings */}
+            <div className="space-y-4 p-4 bg-gray-50 rounded-xl col-span-1 md:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-gray-700">Promotional Offer</h3>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={settings.offerEnabled}
+                    onChange={(e) => setSettings({...settings, offerEnabled: e.target.checked})}
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <span className="ml-3 text-sm font-medium text-gray-700">{settings.offerEnabled ? 'Enabled' : 'Disabled'}</span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-bold mb-1 block">Offer Percentage (%)</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={settings.offerPercentage}
+                    onChange={(e) => setSettings({...settings, offerPercentage: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-bold mb-1 block">Duration (Days)</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={offerDays}
+                    onChange={(e) => setOfferDays(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase font-bold mb-1 block">Duration (Hours)</label>
+                  <input
+                    type="number"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    value={offerHours}
+                    onChange={(e) => setOfferHours(e.target.value)}
+                  />
+                </div>
+              </div>
+              
+              {settings.offerExpiry && (
+                <p className="text-xs text-blue-600 font-semibold mt-2">
+                  Current Expiry: {new Date(settings.offerExpiry).toLocaleString()}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <Button
+              onClick={handleSaveSettings}
+              loading={savingSettings}
+              className="px-8"
+            >
+              Update All Settings
+            </Button>
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-2 gap-8 mb-10">
           {/* Top Products */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
@@ -191,13 +358,41 @@ const AdminDashboard = () => {
             </div>
           </div>
           {/* All Orders Management */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-8">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-              Order Management Lifecycle
-            </h2>
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mt-8 lg:col-span-2">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                Order Management Lifecycle
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search orders..."
+                    className="pl-9 pr-4 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 w-full"
+                    value={orderSearchTerm}
+                    onChange={(e) => setOrderSearchTerm(e.target.value)}
+                  />
+                  <svg className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <select
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                  value={selectedOrderStatus}
+                  onChange={(e) => setSelectedOrderStatus(e.target.value)}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="CREATED">Created</option>
+                  <option value="CONFIRMED">Confirmed</option>
+                  <option value="SHIPPED">Shipped</option>
+                  <option value="DELIVERED">Delivered</option>
+                  <option value="CANCELLED">Cancelled</option>
+                </select>
+              </div>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -210,57 +405,65 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-4 text-sm font-bold text-gray-900">#{order.id}</td>
-                      <td className="py-4">
-                        <div className="text-sm font-medium text-gray-700">{order.customerName}</div>
-                        <div className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</div>
-                      </td>
-                      <td className="py-4">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                          order.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                          order.status === 'SHIPPED' ? 'bg-blue-100 text-blue-700' :
-                          order.status === 'DELIVERED' ? 'bg-purple-100 text-purple-700' :
-                          order.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {order.status}
-                        </span>
-                      </td>
-                      <td className="py-4 text-sm font-extrabold text-gray-900">₹{order.totalAmount.toLocaleString()}</td>
-                      <td className="py-4 text-right">
-                        <div className="flex justify-end space-x-2">
-                          {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="success"
-                                onClick={() => handleStatusUpdate(order.id, order.status)}
-                                loading={updatingId === order.id}
-                                className="text-[10px] py-1 h-auto"
-                              >
-                                {order.status === 'CREATED' ? 'Confirm' : 
-                                 order.status === 'CONFIRMED' ? 'Ship' : 'Deliver'}
-                              </Button>
-                              
-                              {order.status !== 'SHIPPED' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleCancel(order.id)}
-                                  disabled={updatingId === order.id}
-                                  className="text-[10px] py-1 h-auto text-red-600 border-red-200 hover:bg-red-50"
-                                >
-                                  Cancel
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
+                  {filteredOrders.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="py-10 text-center text-gray-500">
+                        No orders found matching your criteria.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredOrders.map((order) => (
+                      <tr key={order.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-4 text-sm font-bold text-gray-900">#{order.id}</td>
+                        <td className="py-4">
+                          <div className="text-sm font-medium text-gray-700">{order.customerName}</div>
+                          <div className="text-xs text-gray-400">{new Date(order.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td className="py-4">
+                          <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            order.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
+                            order.status === 'SHIPPED' ? 'bg-blue-100 text-blue-700' :
+                            order.status === 'DELIVERED' ? 'bg-purple-100 text-purple-700' :
+                            order.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                            'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="py-4 text-sm font-extrabold text-gray-900">₹{order.totalAmount.toLocaleString()}</td>
+                        <td className="py-4 text-right">
+                          <div className="flex justify-end space-x-2">
+                            {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  onClick={() => handleStatusUpdate(order.id, order.status)}
+                                  loading={updatingId === order.id}
+                                  className="text-[10px] py-1 h-auto"
+                                >
+                                  {order.status === 'CREATED' ? 'Confirm' : 
+                                   order.status === 'CONFIRMED' ? 'Ship' : 'Deliver'}
+                                </Button>
+                                
+                                {order.status !== 'SHIPPED' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleCancel(order.id)}
+                                    disabled={updatingId === order.id}
+                                    className="text-[10px] py-1 h-auto text-red-600 border-red-200 hover:bg-red-50"
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
