@@ -54,7 +54,8 @@ const PaymentSuccess = () => {
           </div>
           
           <p className="mt-8 text-xs text-gray-400 font-medium">
-            Need help? <a href="#" className="text-blue-500 hover:underline">Contact Support</a>
+            {/* href="#" ah Link component ah maathiyachu */}
+            Need help? <Link to="/" className="text-blue-500 hover:underline">Contact Support</Link>
           </p>
         </div>
       </div>
