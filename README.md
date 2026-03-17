@@ -3,7 +3,7 @@
 A premium, full-stack e-commerce application inspired by Flipkart, built with Spring Boot and React.
 
 ## 🚀 Deployed Links
-- **Frontend (Vercel):** [Live Demo](https://your-frontend-link.vercel.app)
+- **Frontend (Vercel):** [Live Demo](https://flipkart-clone-9ipw.vercel.app)
 - **Backend (Render):** [API Endpoint](https://flipkart-clone-x62y.onrender.com)
 - **SonarQube Analysis:** [Analysis Report](your-sonarqube-link-here)
 
