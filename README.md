@@ -4,7 +4,7 @@ A premium, full-stack e-commerce application inspired by Flipkart, built with Sp
 
 ## 🚀 Deployed Links
 - **Frontend (Vercel):** [Live Demo](https://your-frontend-link.vercel.app)
-- **Backend (Render):** [API Endpoint](https://your-backend-link.onrender.com)
+- **Backend (Render):** [API Endpoint](https://flipkart-clone-x62y.onrender.com)
 - **SonarQube Analysis:** [Analysis Report](your-sonarqube-link-here)
 
 ## 🛠️ Technology Stack
